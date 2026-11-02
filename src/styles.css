@@ -21,7 +21,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .side{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap}
 .muted{color:var(--muted);font-size:.9rem}.stars{color:var(--accent);letter-spacing:1px}.err{color:var(--danger)}.empty{text-align:center;padding:40px 0}
 .badge{font-size:.75rem;padding:2px 8px;border-radius:99px;border:1px solid var(--line);width:fit-content}.badge.tried{background:var(--accent);border-color:var(--accent);color:#2b1a2d}
-.hit{text-align:left;font-size:.9rem}.visit{border-top:1px solid var(--line);padding:8px 0}.visitform{display:flex;flex-direction:column;gap:8px}
+.hit{text-align:left;font-size:.9rem}.visit{border-top:1px solid var(--line);padding:8px 0}.visitform{display:flex;flex-direction:column;gap:8px}.visit-field{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}.visit-field label,.visit-detail-fields label{margin:0}.visit-detail-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.visit-detail-fields>div{display:flex;flex-direction:column;min-width:0;overflow-wrap:anywhere}.calendar-restaurant{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}.visitform .row{align-items:flex-start}
 .starpick button{border:0;background:none;font-size:1.8rem;color:var(--line);padding:0 4px}.starpick .on{color:var(--accent)}
 .fab{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);border:0;padding:14px 24px;border-radius:99px;box-shadow:0 4px 14px #0004}
 a{color:var(--ink)}
