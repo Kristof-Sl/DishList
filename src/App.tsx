@@ -120,6 +120,7 @@ export default function App(){
   const [sel,setSel]=useState<string|null>(null),[adding,setAdding]=useState(false),[menu,setMenu]=useState(false)
   const [q,setQ]=useState(''),[st,setSt]=useState(''),[ty,setTy]=useState(''),[pr,setPr]=useState(''),[cu,setCu]=useState(''),[mr,setMr]=useState(0),[km,setKm]=useState(0),[sort,setSort]=useState('new')
   const [pos,setPos]=useState<[number,number]|null>(null),[photos,setPhotos]=useState<Photo[]>([]),[view,setView]=useState('list')
+  const [calendar,setCalendar]=useState(false),[selectedYears,setSelectedYears]=useState<string[]|null>(null),[calendarVisitId,setCalendarVisitId]=useState<string|null>(null)
   useEffect(()=>{document.documentElement.dataset.theme=theme},[theme])
   useEffect(()=>{supabase.auth.getSession().then(({data})=>setSession(data.session));const {data}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return ()=>data.subscription.unsubscribe()},[])
   const load=async()=>{const a=await supabase.from('places').select('*').order('created_at',{ascending:false}),b=await supabase.from('visits').select('*').order('visited_on',{ascending:false});setPlaces((a.data as Place[])||[]);setVisits((b.data as Visit[])||[]);const c=await supabase.from('visit_photos').select('*');setPhotos((c.data as Photo[])||[])}
@@ -127,10 +128,28 @@ export default function App(){
   const useNear=(k:number)=>{setKm(k);if(k&&!pos)navigator.geolocation.getCurrentPosition(p=>setPos([p.coords.latitude,p.coords.longitude]),()=>{alert(t(l,'loc_fail'));setKm(0)})}
   const avg=(id:string)=>{const r=visits.filter(v=>v.place_id===id&&v.rating).map(v=>v.rating!);return r.length?r.reduce((a,b)=>a+b,0)/r.length:0}
   const dOf=(p:Place)=>pos&&p.lat!=null?dist(pos[0],pos[1],p.lat,p.lng!):null
+  const placeById=useMemo(()=>new Map(places.map(p=>[p.id,p])),[places])
   const shown=useMemo(()=>{
     let r=places.filter(p=>(!q||(p.name+' '+(p.address||'')).toLowerCase().includes(q.toLowerCase()))&&(!st||p.status===st)&&(!ty||p.type===ty)&&(!pr||p.price===pr)&&(!cu||(p.cuisine||'').toLowerCase().includes(cu.toLowerCase()))&&avg(p.id)>=mr&&(!km||(dOf(p)!=null&&dOf(p)!<=km)))
     if(sort==='name')r=[...r].sort((a,b)=>a.name.localeCompare(b.name));if(sort==='rating')r=[...r].sort((a,b)=>avg(b.id)-avg(a.id));if(sort==='dist'&&pos)r=[...r].sort((a,b)=>(dOf(a)??1e9)-(dOf(b)??1e9))
     return r},[places,visits,q,st,ty,pr,cu,mr,km,sort,pos])
+  const calendarVisits=useMemo(()=>visits
+    .filter(v=>{const p=placeById.get(v.place_id);return !!p&&(!q||(p.name+' '+(p.address||'')).toLowerCase().includes(q.toLowerCase()))})
+    .sort((a,b)=>b.visited_on.localeCompare(a.visited_on)),[visits,placeById,q])
+  const calendarYears=[...new Set(visits.map(v=>v.visited_on.slice(0,4)))].sort((a,b)=>b.localeCompare(a))
+  const groupedVisits=useMemo(()=>{
+    const groups=new Map<string,Map<string,Visit[]>>()
+    calendarVisits.filter(v=>selectedYears===null||selectedYears.includes(v.visited_on.slice(0,4))).forEach(v=>{
+      const year=v.visited_on.slice(0,4),month=v.visited_on.slice(5,7)
+      if(!groups.has(year))groups.set(year,new Map())
+      const months=groups.get(year)!
+      if(!months.has(month))months.set(month,[])
+      months.get(month)!.push(v)
+    })
+    return [...groups].sort(([a],[b])=>b.localeCompare(a)).map(([year,months])=>({
+      year,months:[...months].sort(([a],[b])=>b.localeCompare(a))
+    }))
+  },[calendarVisits,selectedYears])
   if(session===undefined)return null
   if(!session)return <Auth l={l}/>
   const cur=places.find(p=>p.id===sel)
@@ -144,8 +163,51 @@ export default function App(){
     {adding?<AddPlace l={l} onDone={()=>{setAdding(false);load()}}/>
     :cur?<Detail key={cur.id+cur.status} l={l} p={cur} visits={visits.filter(v=>v.place_id===cur.id)} photos={photos} name={name} reload={load} close={()=>setSel(null)}/>
     :<>
-      <div className="tabs">{[['',''],['to_try','to_try'],['tried','tried']].map(([k,x])=><button key={k} className={st===k?'on':''} onClick={()=>setSt(k)}>{t(l,x||'all')}</button>)}</div>
-      <div className="row"><input placeholder={t(l,'search_ph')} value={q} onChange={e=>setQ(e.target.value)}/><div className="seg">{[['list','list'],['map','map']].map(([k,x])=><button key={k} className={view===k?'on':''} onClick={()=>setView(k)}>{t(l,x)}</button>)}</div></div>
+      <div className="tabs">
+        <button className={calendar?'on':''} onClick={()=>setCalendar(true)}>{t(l,'calendar')}</button>
+        <button className={!calendar&&st===''?'on':''} onClick={()=>{setCalendar(false);setSt('')}}>{t(l,'all')}</button>
+        <button className={!calendar&&st==='to_try'?'on':''} onClick={()=>{setCalendar(false);setSt('to_try')}}>{t(l,'to_try')}</button>
+        <button className={!calendar&&st==='tried'?'on':''} onClick={()=>{setCalendar(false);setSt('tried')}}>{t(l,'tried')}</button>
+      </div>
+      <div className="row"><input placeholder={t(l,'search_ph')} value={q} onChange={e=>setQ(e.target.value)}/>{!calendar&&<div className="seg">{[['list','list'],['map','map']].map(([k,x])=><button key={k} className={view===k?'on':''} onClick={()=>setView(k)}>{t(l,x)}</button>)}</div>}</div>
+      {calendar?<>
+        <div className="year-pills" role="group" aria-label={t(l,'calendar_years')}>{calendarYears.map(year=><button key={year} className={selectedYears===null||selectedYears.includes(year)?'on':''} aria-pressed={selectedYears===null||selectedYears.includes(year)} onClick={()=>{
+          const current=selectedYears??calendarYears
+          const next=current.includes(year)?current.filter(y=>y!==year):[...current,year]
+          setSelectedYears(next.length===calendarYears.length?null:next)
+        }}>{year}</button>)}</div>
+        {calendarVisitId&&visits.some(v=>v.id===calendarVisitId)?(()=>{
+          const visit=visits.find(v=>v.id===calendarVisitId)!
+          const place=placeById.get(visit.place_id)!
+          const visitPhotos=photos.filter(photo=>photo.visit_id===visit.id)
+          return <section className="calendar-detail">
+            <button className="ghost" onClick={()=>setCalendarVisitId(null)}>← {t(l,'back')}</button>
+            <h2>{place.name}</h2>
+            <div className="muted">{new Intl.DateTimeFormat(l==='nl'?'nl-NL':'en-US',{dateStyle:'long'}).format(new Date(`${visit.visited_on}T12:00:00`))}</div>
+            {visit.rating&&<div className="stars">{stars(visit.rating)}</div>}
+            {visit.total_bill!=null&&<div>{t(l,'total_bill')}: {new Intl.NumberFormat(l==='nl'?'nl-NL':'en-US',{style:'currency',currency:'EUR'}).format(visit.total_bill)}</div>}
+            {visit.reason&&<div>{t(l,'reason')}: {visit.reason}</div>}
+            {visit.by_name&&<div>{t(l,'by')}: {visit.by_name}</div>}
+            {visit.went_with&&<div>{t(l,'with')}: {t(l,visit.went_with)}</div>}
+            {visit.meal_type&&<div>{t(l,'meal_type')}: {t(l,visit.meal_type)}</div>}
+            {visit.would_return&&<div>{t(l,'would_return')}: {t(l,visit.would_return)}</div>}
+            {visit.dishes&&<div>{t(l,'dishes')}: {visit.dishes}</div>}
+            {visit.notes&&<div>{t(l,'notes')}: {visit.notes}</div>}
+            {place.address&&<div>{t(l,'address')}: {place.address}</div>}
+            {!!visitPhotos.length&&<div className="photos">{visitPhotos.map(photo=><a key={photo.id} href={photoUrl(photo.path)} target="_blank" rel="noreferrer"><img src={photoUrl(photo.path)} loading="lazy" alt=""/></a>)}</div>}
+          </section>
+        })():groupedVisits.length?groupedVisits.map(({year,months})=><section className="calendar-year" key={year}>
+          <h2>{year}</h2>
+          {months.map(([month,monthVisits])=><div className="calendar-month" key={month}>
+            <h3>{new Intl.DateTimeFormat(l==='nl'?'nl-NL':'en-US',{month:'long'}).format(new Date(Number(year),Number(month)-1,1))}</h3>
+            {monthVisits.map(visit=>{const place=placeById.get(visit.place_id)!;return <button className="calendar-visit" key={visit.id} onClick={()=>setCalendarVisitId(visit.id)}>
+              <b>{place.name}</b>
+              <span className="calendar-visit-meta">{new Intl.DateTimeFormat(l==='nl'?'nl-NL':'en-US',{day:'numeric',month:'short'}).format(new Date(`${visit.visited_on}T12:00:00`))}{visit.rating!=null&&<span className="stars">{stars(visit.rating)}</span>}{visit.total_bill!=null&&<span>{new Intl.NumberFormat(l==='nl'?'nl-NL':'en-US',{style:'currency',currency:'EUR'}).format(visit.total_bill)}</span>}</span>
+              {visit.reason&&<span className="muted">{visit.reason}</span>}
+            </button>})}
+          </div>)}
+        </section>):<p className="muted empty">{t(l,'calendar_empty')}</p>}
+      </>:<>
       <details><summary>Filters</summary><div className="filters">
         <select value={ty} onChange={e=>setTy(e.target.value)}><option value="">{t(l,'type')}</option>{TYPES.map(x=><option key={x} value={x}>{t(l,'type_'+x)}</option>)}</select>
         <select value={pr} onChange={e=>setPr(e.target.value)}><option value="">{t(l,'price')}</option>{PRICES.map(x=><option key={x}>{x}</option>)}</select>
@@ -159,5 +221,6 @@ export default function App(){
         <div className="side">{a?<span className="stars">{stars(a)}</span>:null}<span className={'badge '+p.status}>{t(l,p.status)}</span>{d!=null&&<span className="muted">{d.toFixed(1)} km</span>}</div></button>})
       :<p className="muted empty">{t(l,'empty')}</p>}
       <button className="fab" onClick={()=>setAdding(true)}>+ {t(l,'add')}</button></>}
+      </>}
   </div>
 }

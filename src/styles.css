@@ -13,6 +13,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .link{border:0;background:none;color:var(--muted);padding:2px 0;text-decoration:underline}
 .row{display:flex;gap:8px}.panel{display:flex;flex-direction:column;gap:8px}label{font-size:.85rem;color:var(--muted);margin-top:4px}
 .tabs{display:flex;border-bottom:2px solid var(--line)}.tabs button{flex:1;border:0;background:none;border-radius:0;padding:10px}.tabs .on{border-bottom:3px solid var(--accent);margin-bottom:-2px;font-weight:700}
+.year-pills{display:flex;flex-wrap:wrap;gap:8px}.year-pills button{border-radius:99px;padding:6px 14px}.year-pills button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.calendar-year>h2{border-bottom:1px solid var(--line);padding-bottom:4px}.calendar-month{display:flex;flex-direction:column;gap:8px;margin:12px 0}.calendar-month h3{text-transform:capitalize}
+.calendar-visit{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;text-align:left;border-left:4px solid var(--accent)}.calendar-visit-meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px}.calendar-detail{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
 .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}summary{cursor:pointer;color:var(--muted)}
 .card{display:flex;justify-content:space-between;gap:12px;text-align:left;width:100%;padding:14px;border-left:5px solid var(--accent)}
 .side{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap}
