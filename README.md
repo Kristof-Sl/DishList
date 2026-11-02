@@ -6,7 +6,7 @@ Shared list of places to eat (to try / tried) for two people. Vite + React + Typ
 
 ### 1. Supabase
 1. supabase.com → **New project** (free plan). Wait until it is ready. (Free plan allows 2 active projects; alternatively reuse your MeepleSync project, the table names don't clash.)
-2. **SQL Editor** → paste the contents of `supabase/schema.sql` → **Run**.
+2. **SQL Editor** → run `supabase/schema.sql`, then run `supabase/photos.sql` (photos + storage bucket).
 3. **Project Settings → API**: copy the *Project URL* and the *anon public* key.
 4. **Authentication → Providers → Email**: switch **off** "Confirm email" (no email sending needed).
 
@@ -36,5 +36,8 @@ Open the site in Safari → Share → **Add to Home Screen**. Log in once inside
 - Places without coordinates (manual entries) are hidden by the "near me" filter.
 - Free Supabase projects pause after about a week of inactivity; resume from the dashboard.
 
-## Not in this first version
-Map view, photo upload, and "near a chosen city". The data model is ready to extend.
+## Upgrading from version 1
+Run `supabase/photos.sql` once, replace the code, run `npm install` (adds Leaflet), commit and push.
+
+## Not yet included
+"Near a chosen city" filter. Photos are shrunk to max 1600 px on your device (about 300 KB each), so the free 1 GB goes a long way.

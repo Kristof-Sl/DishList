@@ -1,14 +1,18 @@
 import {useEffect,useMemo,useState} from 'react'
 import {supabase} from './supabase'
 import {t,Lang} from './i18n'
+import {MapView} from './MapView'
 
 type Place={id:string;name:string;address:string|null;lat:number|null;lng:number|null;type:string|null;cuisine:string|null;price:string|null;website:string|null;status:'to_try'|'tried';source:string|null;notes:string|null}
 type Visit={id:string;place_id:string;visited_on:string;by_name:string|null;went_with:string|null;rating:number|null;would_return:string|null;dishes:string|null;notes:string|null}
+type Photo={id:string;visit_id:string;path:string}
 const TYPES=['restaurant','cafe','bistro','bar','bakery','takeaway','other']
 const PRICES=['€','€€','€€€','€€€€']
 const THEMES=['saffraan','olijf','nacht']
 const dist=(a:number,b:number,c:number,d:number)=>{const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 12742*Math.asin(Math.sqrt(x))}
 const stars=(n:number)=>'★'.repeat(Math.round(n))+'☆'.repeat(5-Math.round(n))
+const photoUrl=(path:string)=>supabase.storage.from('photos').getPublicUrl(path).data.publicUrl
+const resize=(f:File):Promise<Blob>=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>{const k=Math.min(1,1600/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d')!.drawImage(i,0,0,c.width,c.height);c.toBlob(b=>b?ok(b):no(),'image/jpeg',.8)};i.onerror=no;i.src=URL.createObjectURL(f)})
 const useLS=(k:string,d:string):[string,(v:string)=>void]=>{const [v,s]=useState(localStorage.getItem(k)||d);return [v,(x:string)=>{localStorage.setItem(k,x);s(x)}]}
 
 function Logo({s=28}:{s?:number}){return <svg width={s} height={s} viewBox="0 0 512 512" aria-hidden><rect width="512" height="512" rx="112" fill="var(--ink)"/><circle cx="256" cy="256" r="150" fill="var(--accent)"/><circle cx="256" cy="256" r="108" fill="var(--bg)"/><path d="M200 258l41 41 76-84" fill="none" stroke="var(--ink)" strokeWidth="30" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -50,14 +54,17 @@ function AddPlace({l,onDone}:{l:Lang;onDone:()=>void}){
     <div className="row"><button className="primary" onClick={save}>{t(l,'save')}</button><button className="ghost" onClick={onDone}>{t(l,'cancel')}</button></div></div>
 }
 
-function Detail({l,p,visits,name,reload,close}:{l:Lang;p:Place;visits:Visit[];name:string;reload:()=>void;close:()=>void}){
+function Detail({l,p,visits,photos,name,reload,close}:{l:Lang;p:Place;visits:Visit[];photos:Photo[];name:string;reload:()=>void;close:()=>void}){
   const [e,setE]=useState<Place>(p)
   const [v,setV]=useState<any>(null)
   const upd=async(patch:Partial<Place>)=>{const {error}=await supabase.from('places').update(patch).eq('id',p.id);if(error)alert(error.message);reload()}
-  const del=async()=>{if(confirm(t(l,'confirm_del'))){await supabase.from('places').delete().eq('id',p.id);reload();close()}}
+  const mine=photos.filter(ph=>visits.some(v=>v.id===ph.visit_id))
+  const upload=async(vid:string,files:FileList|null)=>{if(!files)return;for(const f of Array.from(files)){try{const b=await resize(f),path=`${vid}/${crypto.randomUUID()}.jpg`,u=await supabase.storage.from('photos').upload(path,b,{contentType:'image/jpeg'});if(u.error){alert(u.error.message);continue};await supabase.from('visit_photos').insert({visit_id:vid,path})}catch{alert('Photo error')}};reload()}
+  const delPhoto=async(ph:Photo)=>{if(confirm(t(l,'confirm_del'))){await supabase.storage.from('photos').remove([ph.path]);await supabase.from('visit_photos').delete().eq('id',ph.id);reload()}}
+  const del=async()=>{if(confirm(t(l,'confirm_del'))){if(mine.length)await supabase.storage.from('photos').remove(mine.map(x=>x.path));await supabase.from('places').delete().eq('id',p.id);reload();close()}}
   const addVisit=async()=>{const {error}=await supabase.from('visits').insert({...v,place_id:p.id});if(error)return alert(error.message)
     if(p.status!=='tried')await supabase.from('places').update({status:'tried'}).eq('id',p.id);setV(null);reload()}
-  const delVisit=async(id:string)=>{if(confirm(t(l,'confirm_del'))){await supabase.from('visits').delete().eq('id',id);reload()}}
+  const delVisit=async(id:string)=>{if(confirm(t(l,'confirm_del'))){const ps=photos.filter(x=>x.visit_id===id).map(x=>x.path);if(ps.length)await supabase.storage.from('photos').remove(ps);await supabase.from('visits').delete().eq('id',id);reload()}}
   const f=(k:keyof Place)=>({value:(e[k] as any)??'',onChange:(x:any)=>setE({...e,[k]:x.target.value})})
   return <div className="panel"><button className="ghost" onClick={close}>← {t(l,'back')}</button>
     <h2>{p.name}</h2>
@@ -79,6 +86,8 @@ function Detail({l,p,visits,name,reload,close}:{l:Lang;p:Place;visits:Visit[];na
     {visits.map(x=><div key={x.id} className="visit"><b>{x.visited_on}</b> {x.rating?<span className="stars">{stars(x.rating)}</span>:null}
       <div className="muted">{[x.by_name,x.went_with&&'+ '+x.went_with,x.would_return&&t(l,'would_return')+' '+t(l,x.would_return)].filter(Boolean).join(' · ')}</div>
       {x.dishes&&<div>🍽 {x.dishes}</div>}{x.notes&&<div>{x.notes}</div>}
+      <div className="photos">{mine.filter(ph=>ph.visit_id===x.id).map(ph=><span key={ph.id}><a href={photoUrl(ph.path)} target="_blank" rel="noreferrer"><img src={photoUrl(ph.path)} loading="lazy" alt=""/></a><button className="x" onClick={()=>delPhoto(ph)}>×</button></span>)}</div>
+      <label className="addphoto">📷 {t(l,'photo')}<input type="file" accept="image/*" multiple hidden onChange={e=>{upload(x.id,e.target.files);e.target.value=''}}/></label>
       <button className="link" onClick={()=>delVisit(x.id)}>{t(l,'delete')}</button></div>)}
     {v?<div className="visitform">
       <div className="row"><input type="date" value={v.visited_on} onChange={x=>setV({...v,visited_on:x.target.value})}/><input placeholder={t(l,'by')} value={v.by_name} onChange={x=>setV({...v,by_name:x.target.value})}/></div>
@@ -98,10 +107,10 @@ export default function App(){
   const [places,setPlaces]=useState<Place[]>([]),[visits,setVisits]=useState<Visit[]>([])
   const [sel,setSel]=useState<string|null>(null),[adding,setAdding]=useState(false),[menu,setMenu]=useState(false)
   const [q,setQ]=useState(''),[st,setSt]=useState(''),[ty,setTy]=useState(''),[pr,setPr]=useState(''),[cu,setCu]=useState(''),[mr,setMr]=useState(0),[km,setKm]=useState(0),[sort,setSort]=useState('new')
-  const [pos,setPos]=useState<[number,number]|null>(null)
+  const [pos,setPos]=useState<[number,number]|null>(null),[photos,setPhotos]=useState<Photo[]>([]),[view,setView]=useState('list')
   useEffect(()=>{document.documentElement.dataset.theme=theme},[theme])
   useEffect(()=>{supabase.auth.getSession().then(({data})=>setSession(data.session));const {data}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s));return ()=>data.subscription.unsubscribe()},[])
-  const load=async()=>{const a=await supabase.from('places').select('*').order('created_at',{ascending:false}),b=await supabase.from('visits').select('*').order('visited_on',{ascending:false});setPlaces((a.data as Place[])||[]);setVisits((b.data as Visit[])||[])}
+  const load=async()=>{const a=await supabase.from('places').select('*').order('created_at',{ascending:false}),b=await supabase.from('visits').select('*').order('visited_on',{ascending:false});setPlaces((a.data as Place[])||[]);setVisits((b.data as Visit[])||[]);const c=await supabase.from('visit_photos').select('*');setPhotos((c.data as Photo[])||[])}
   useEffect(()=>{if(session)load()},[session])
   const useNear=(k:number)=>{setKm(k);if(k&&!pos)navigator.geolocation.getCurrentPosition(p=>setPos([p.coords.latitude,p.coords.longitude]),()=>{alert(t(l,'loc_fail'));setKm(0)})}
   const avg=(id:string)=>{const r=visits.filter(v=>v.place_id===id&&v.rating).map(v=>v.rating!);return r.length?r.reduce((a,b)=>a+b,0)/r.length:0}
@@ -120,10 +129,10 @@ export default function App(){
       <label>{t(l,'theme')}</label><select value={theme} onChange={e=>setTheme(e.target.value)}>{THEMES.map(x=><option key={x}>{x}</option>)}</select>
       <button className="ghost" onClick={()=>supabase.auth.signOut()}>{t(l,'logout')}</button></div>}
     {adding?<AddPlace l={l} onDone={()=>{setAdding(false);load()}}/>
-    :cur?<Detail key={cur.id+cur.status} l={l} p={cur} visits={visits.filter(v=>v.place_id===cur.id)} name={name} reload={load} close={()=>setSel(null)}/>
+    :cur?<Detail key={cur.id+cur.status} l={l} p={cur} visits={visits.filter(v=>v.place_id===cur.id)} photos={photos} name={name} reload={load} close={()=>setSel(null)}/>
     :<>
       <div className="tabs">{[['',''],['to_try','to_try'],['tried','tried']].map(([k,x])=><button key={k} className={st===k?'on':''} onClick={()=>setSt(k)}>{t(l,x||'all')}</button>)}</div>
-      <input placeholder={t(l,'search_ph')} value={q} onChange={e=>setQ(e.target.value)}/>
+      <div className="row"><input placeholder={t(l,'search_ph')} value={q} onChange={e=>setQ(e.target.value)}/><div className="seg">{[['list','list'],['map','map']].map(([k,x])=><button key={k} className={view===k?'on':''} onClick={()=>setView(k)}>{t(l,x)}</button>)}</div></div>
       <details><summary>Filters</summary><div className="filters">
         <select value={ty} onChange={e=>setTy(e.target.value)}><option value="">{t(l,'type')}</option>{TYPES.map(x=><option key={x} value={x}>{t(l,'type_'+x)}</option>)}</select>
         <select value={pr} onChange={e=>setPr(e.target.value)}><option value="">{t(l,'price')}</option>{PRICES.map(x=><option key={x}>{x}</option>)}</select>
@@ -132,7 +141,7 @@ export default function App(){
         <select value={km} onChange={e=>useNear(+e.target.value)}><option value={0}>{t(l,'near')}: {t(l,'off')}</option>{[1,2,5,10,25,50].map(n=><option key={n} value={n}>{t(l,'near')}: {n}</option>)}</select>
         <select value={sort} onChange={e=>setSort(e.target.value)}><option value="new">{t(l,'sort')}: {t(l,'s_new')}</option><option value="name">{t(l,'s_name')}</option><option value="rating">{t(l,'s_rating')}</option><option value="dist" onClick={()=>useNear(km||10)}>{t(l,'s_dist')}</option></select>
       </div></details>
-      {shown.length?shown.map(p=>{const a=avg(p.id),d=dOf(p);return <button key={p.id} className="card" onClick={()=>setSel(p.id)}>
+      {view==='map'?<MapView places={shown} pos={pos} onSelect={setSel}/>:shown.length?shown.map(p=>{const a=avg(p.id),d=dOf(p);return <button key={p.id} className="card" onClick={()=>setSel(p.id)}>
         <div><b>{p.name}</b><div className="muted">{[t(l,'type_'+(p.type||'other')),p.cuisine,p.price,p.address].filter(Boolean).join(' · ')}</div></div>
         <div className="side">{a?<span className="stars">{stars(a)}</span>:null}<span className={'badge '+p.status}>{t(l,p.status)}</span>{d!=null&&<span className="muted">{d.toFixed(1)} km</span>}</div></button>})
       :<p className="muted empty">{t(l,'empty')}</p>}

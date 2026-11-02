@@ -14,5 +14,6 @@ delete:['Verwijderen','Delete'],confirm_del:['Zeker verwijderen?','Really delete
 visits:['Bezoeken','Visits'],new_visit:['Bezoek loggen','Log a visit'],date:['Datum','Date'],by:['Wie','Who'],with:['Met wie','With'],rating:['Beoordeling','Rating'],
 would_return:['Terugkomen?','Return?'],yes:['Ja','Yes'],maybe:['Misschien','Maybe'],no:['Nee','No'],dishes:['Gegeten (komma-gescheiden, optioneel)','Eaten (comma-separated, optional)'],
 no_results:['Geen resultaten. Voeg handmatig toe.','No results. Add manually.'],loc_fail:['Locatie niet beschikbaar','Location unavailable'],
+list:['Lijst','List'],map:['Kaart','Map'],photo:['Foto toevoegen','Add photo'],
 settings:['Instellingen','Settings'],language:['Taal','Language'],theme:['Stijl','Style']}
 export const t=(l:Lang,k:string)=>D[k]?D[k][l==='nl'?0:1]:k
