@@ -4,7 +4,8 @@ import {t,Lang} from './i18n'
 import {MapView} from './MapView'
 
 type Place={id:string;name:string;address:string|null;lat:number|null;lng:number|null;type:string|null;cuisine:string|null;price:string|null;website:string|null;status:'to_try'|'tried';source:string|null;notes:string|null}
-type Visit={id:string;place_id:string;visited_on:string;by_name:string|null;went_with:string|null;rating:number|null;would_return:string|null;dishes:string|null;notes:string|null}
+type Visit={id:string;place_id:string;visited_on:string;by_name:string|null;went_with:string|null;rating:number|null;would_return:string|null;dishes:string|null;notes:string|null;total_bill:number|null;meal_type:string|null;reason:string|null}
+type VisitDraft={id?:string;visited_on:string;by_name:string;went_with:string;rating:number;would_return:string;dishes:string;notes:string;total_bill:string;meal_type:string;reason:string}
 type Photo={id:string;visit_id:string;path:string}
 const TYPES=['restaurant','cafe','bistro','bar','bakery','takeaway','other']
 const PRICES=['€','€€','€€€','€€€€']
@@ -56,14 +57,18 @@ function AddPlace({l,onDone}:{l:Lang;onDone:()=>void}){
 
 function Detail({l,p,visits,photos,name,reload,close}:{l:Lang;p:Place;visits:Visit[];photos:Photo[];name:string;reload:()=>void;close:()=>void}){
   const [e,setE]=useState<Place>(p)
-  const [v,setV]=useState<any>(null)
+  const [v,setV]=useState<VisitDraft|null>(null)
   const upd=async(patch:Partial<Place>)=>{const {error}=await supabase.from('places').update(patch).eq('id',p.id);if(error)alert(error.message);reload()}
   const mine=photos.filter(ph=>visits.some(v=>v.id===ph.visit_id))
   const upload=async(vid:string,files:FileList|null)=>{if(!files)return;for(const f of Array.from(files)){try{const b=await resize(f),path=`${vid}/${crypto.randomUUID()}.jpg`,u=await supabase.storage.from('photos').upload(path,b,{contentType:'image/jpeg'});if(u.error){alert(u.error.message);continue};await supabase.from('visit_photos').insert({visit_id:vid,path})}catch{alert('Photo error')}};reload()}
   const delPhoto=async(ph:Photo)=>{if(confirm(t(l,'confirm_del'))){await supabase.storage.from('photos').remove([ph.path]);await supabase.from('visit_photos').delete().eq('id',ph.id);reload()}}
   const del=async()=>{if(confirm(t(l,'confirm_del'))){if(mine.length)await supabase.storage.from('photos').remove(mine.map(x=>x.path));await supabase.from('places').delete().eq('id',p.id);reload();close()}}
-  const addVisit=async()=>{const {error}=await supabase.from('visits').insert({...v,place_id:p.id});if(error)return alert(error.message)
-    if(p.status!=='tried')await supabase.from('places').update({status:'tried'}).eq('id',p.id);setV(null);reload()}
+  const saveVisit=async()=>{if(!v)return
+    const payload={visited_on:v.visited_on,by_name:v.by_name.trim()||null,went_with:v.went_with||null,rating:v.rating||null,would_return:v.would_return||null,dishes:v.dishes.trim()||null,notes:v.notes.trim()||null,total_bill:v.total_bill===''?null:Number(v.total_bill),meal_type:v.meal_type||null,reason:v.reason.trim()||null}
+    const result=v.id?await supabase.from('visits').update(payload).eq('id',v.id):await supabase.from('visits').insert({...payload,place_id:p.id})
+    if(result.error)return alert(result.error.message)
+    if(!v.id&&p.status!=='tried')await supabase.from('places').update({status:'tried'}).eq('id',p.id);setV(null);reload()}
+  const editVisit=(visit:Visit)=>setV({id:visit.id,visited_on:visit.visited_on,by_name:visit.by_name||'',went_with:visit.went_with||'',rating:visit.rating||0,would_return:visit.would_return||'',dishes:visit.dishes||'',notes:visit.notes||'',total_bill:visit.total_bill==null?'':String(visit.total_bill),meal_type:visit.meal_type||'',reason:visit.reason||''})
   const delVisit=async(id:string)=>{if(confirm(t(l,'confirm_del'))){const ps=photos.filter(x=>x.visit_id===id).map(x=>x.path);if(ps.length)await supabase.storage.from('photos').remove(ps);await supabase.from('visits').delete().eq('id',id);reload()}}
   const f=(k:keyof Place)=>({value:(e[k] as any)??'',onChange:(x:any)=>setE({...e,[k]:x.target.value})})
   return <div className="panel"><button className="ghost" onClick={close}>← {t(l,'back')}</button>
@@ -84,20 +89,27 @@ function Detail({l,p,visits,photos,name,reload,close}:{l:Lang;p:Place;visits:Vis
       <button className="danger" onClick={del}>{t(l,'delete')}</button></div>
     <h3>{t(l,'visits')}</h3>
     {visits.map(x=><div key={x.id} className="visit"><b>{x.visited_on}</b> {x.rating?<span className="stars">{stars(x.rating)}</span>:null}
-      <div className="muted">{[x.by_name,x.went_with&&'+ '+x.went_with,x.would_return&&t(l,'would_return')+' '+t(l,x.would_return)].filter(Boolean).join(' · ')}</div>
-      {x.dishes&&<div>🍽 {x.dishes}</div>}{x.notes&&<div>{x.notes}</div>}
+      <div className="muted">{[x.by_name,x.went_with&&t(l,x.went_with),x.meal_type&&t(l,x.meal_type),x.total_bill!=null&&new Intl.NumberFormat(l==='nl'?'nl-NL':'en-US',{style:'currency',currency:'EUR'}).format(x.total_bill),x.would_return&&t(l,'would_return')+' '+t(l,x.would_return)].filter(Boolean).join(' · ')}</div>
+      {x.dishes&&<div>🍽 {x.dishes}</div>}{x.reason&&<div>{t(l,'reason')}: {x.reason}</div>}{x.notes&&<div>{x.notes}</div>}
       <div className="photos">{mine.filter(ph=>ph.visit_id===x.id).map(ph=><span key={ph.id}><a href={photoUrl(ph.path)} target="_blank" rel="noreferrer"><img src={photoUrl(ph.path)} loading="lazy" alt=""/></a><button className="x" onClick={()=>delPhoto(ph)}>×</button></span>)}</div>
       <label className="addphoto">📷 {t(l,'photo')}<input type="file" accept="image/*" multiple hidden onChange={e=>{upload(x.id,e.target.files);e.target.value=''}}/></label>
-      <button className="link" onClick={()=>delVisit(x.id)}>{t(l,'delete')}</button></div>)}
+      <div className="row"><button className="link" onClick={()=>editVisit(x)}>{t(l,'edit_visit')}</button><button className="link" onClick={()=>delVisit(x.id)}>{t(l,'delete')}</button></div></div>)}
     {v?<div className="visitform">
-      <div className="row"><input type="date" value={v.visited_on} onChange={x=>setV({...v,visited_on:x.target.value})}/><input placeholder={t(l,'by')} value={v.by_name} onChange={x=>setV({...v,by_name:x.target.value})}/></div>
-      <input placeholder={t(l,'with')} value={v.went_with} onChange={x=>setV({...v,went_with:x.target.value})}/>
+      <b>{t(l,v.id?'edit_visit':'new_visit')}</b>
+      <div className="row"><input aria-label={t(l,'date')} type="date" value={v.visited_on} onChange={x=>setV({...v,visited_on:x.target.value})}/><input aria-label={t(l,'by')} placeholder={t(l,'by')} value={v.by_name} onChange={x=>setV({...v,by_name:x.target.value})}/></div>
+      <select aria-label={t(l,'with')} value={v.went_with} onChange={x=>setV({...v,went_with:x.target.value})}>
+        <option value="">{t(l,'with')}</option>{['with_two','with_family','with_others'].map(k=><option key={k} value={k}>{t(l,k)}</option>)}
+        {v.went_with&&!['with_two','with_family','with_others'].includes(v.went_with)&&<option value={v.went_with}>{v.went_with}</option>}
+      </select>
       <div className="starpick">{[1,2,3,4,5].map(n=><button key={n} className={n<=v.rating?'on':''} onClick={()=>setV({...v,rating:n})}>★</button>)}</div>
       <select value={v.would_return} onChange={x=>setV({...v,would_return:x.target.value})}><option value="">{t(l,'would_return')}</option>{['yes','maybe','no'].map(k=><option key={k} value={k}>{t(l,k)}</option>)}</select>
+      <div className="row"><input aria-label={t(l,'total_bill')} type="number" min="0" step="0.01" placeholder={t(l,'total_bill')} value={v.total_bill} onChange={x=>setV({...v,total_bill:x.target.value})}/>
+        <select aria-label={t(l,'meal_type')} value={v.meal_type} onChange={x=>setV({...v,meal_type:x.target.value})}><option value="">{t(l,'meal_type')}</option>{['takeaway','dine_in'].map(k=><option key={k} value={k}>{t(l,k)}</option>)}</select></div>
       <input placeholder={t(l,'dishes')} value={v.dishes} onChange={x=>setV({...v,dishes:x.target.value})}/>
+      <textarea rows={2} placeholder={t(l,'reason')} value={v.reason} onChange={x=>setV({...v,reason:x.target.value})}/>
       <textarea rows={2} placeholder={t(l,'notes')} value={v.notes} onChange={x=>setV({...v,notes:x.target.value})}/>
-      <div className="row"><button className="primary" onClick={addVisit}>{t(l,'save')}</button><button className="ghost" onClick={()=>setV(null)}>{t(l,'cancel')}</button></div></div>
-     :<button className="primary" onClick={()=>setV({visited_on:new Date().toISOString().slice(0,10),by_name:name,went_with:'',rating:0,would_return:'',dishes:'',notes:''})}>+ {t(l,'new_visit')}</button>}
+      <div className="row"><button className="primary" onClick={saveVisit}>{t(l,'save')}</button><button className="ghost" onClick={()=>setV(null)}>{t(l,'cancel')}</button></div></div>
+     :<button className="primary" onClick={()=>setV({visited_on:new Date().toISOString().slice(0,10),by_name:name,went_with:'',rating:0,would_return:'',dishes:'',notes:'',total_bill:'',meal_type:'',reason:''})}>+ {t(l,'new_visit')}</button>}
   </div>
 }
 
@@ -122,7 +134,8 @@ export default function App(){
   if(session===undefined)return null
   if(!session)return <Auth l={l}/>
   const cur=places.find(p=>p.id===sel)
-  const name=(session.user.email||'').split('@')[0]
+  const emailName=(session.user.email||'').split('@')[0].split('.')[0]
+  const name=emailName?emailName.charAt(0).toUpperCase()+emailName.slice(1).toLowerCase():''
   return <div className="app">
     <header><h1><Logo/> Dishlist</h1><button className="ghost" onClick={()=>setMenu(!menu)}>⚙</button></header>
     {menu&&<div className="panel"><label>{t(l,'language')}</label><select value={lang} onChange={e=>setLang(e.target.value)}><option value="nl">Nederlands</option><option value="en">English</option></select>

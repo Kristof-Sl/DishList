@@ -37,7 +37,7 @@ Open the site in Safari → Share → **Add to Home Screen**. Log in once inside
 - Free Supabase projects pause after about a week of inactivity; resume from the dashboard.
 
 ## Upgrading from version 1
-Run `supabase/photos.sql` once, replace the code, run `npm install` (adds Leaflet), commit and push.
+Run `supabase/visit_fields.sql` in the Supabase SQL Editor to add the new visit fields, run `supabase/photos.sql` once, replace the code, run `npm install` (adds Leaflet), commit and push.
 
 ## Not yet included
 "Near a chosen city" filter. Photos are shrunk to max 1600 px on your device (about 300 KB each), so the free 1 GB goes a long way.
