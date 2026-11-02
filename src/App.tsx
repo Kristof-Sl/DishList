@@ -24,14 +24,19 @@ const fetchNominatim=(url:string|URL):Promise<Response>=>{
   return request
 }
 const geocodeAddress=async(name:string,address:string,l:Lang):Promise<{lat:number;lng:number}>=>{
-  const url=new URL('https://nominatim.openstreetmap.org/search')
-  url.search=new URLSearchParams({format:'jsonv2',limit:'1','accept-language':l,q:`${name.trim()}, ${address.trim()}`}).toString()
-  const response=await fetchNominatim(url)
-  if(!response.ok)throw new Error(`OpenStreetMap lookup failed (${response.status})`)
-  const results:NominatimResult[]=await response.json()
-  const result=results[0],lat=Number(result?.lat),lng=Number(result?.lon)
-  if(!Number.isFinite(lat)||!Number.isFinite(lng)||lat < -90||lat > 90||lng < -180||lng > 180)throw new Error(t(l,'address_not_found'))
-  return {lat,lng}
+  const queries=[address.trim(),`${name.trim()}, ${address.trim()}`].filter((query,index,all)=>query&&all.indexOf(query)===index)
+  for(const query of queries){
+    const url=new URL('https://nominatim.openstreetmap.org/search')
+    url.search=new URLSearchParams({format:'jsonv2',limit:'1','accept-language':l,q:query}).toString()
+    const response=await fetchNominatim(url)
+    if(!response.ok)throw new Error(`OpenStreetMap lookup failed (${response.status})`)
+    const results:NominatimResult[]=await response.json()
+    const result=results[0]
+    if(!result)continue
+    const lat=Number(result.lat),lng=Number(result.lon)
+    if(Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180)return {lat,lng}
+  }
+  throw new Error(t(l,'address_not_found'))
 }
 const dist=(a:number,b:number,c:number,d:number)=>{const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 12742*Math.asin(Math.sqrt(x))}
 const stars=(n:number)=>'★'.repeat(Math.round(n))+'☆'.repeat(5-Math.round(n))
