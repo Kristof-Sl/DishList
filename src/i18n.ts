@@ -17,5 +17,6 @@ would_return:['Terugkomen?','Return?'],yes:['Ja','Yes'],maybe:['Misschien','Mayb
 total_bill:['Totale rekening','Total bill'],meal_type:['Type maaltijd','Meal type'],takeaway:['Afhaal','Take-Away'],dine_in:['Ter plaatse','Dine-in'],reason:['Reden van bezoek','Reason of visit'],
 no_results:['Geen resultaten. Voeg handmatig toe.','No results. Add manually.'],loc_fail:['Locatie niet beschikbaar','Location unavailable'],
 list:['Lijst','List'],map:['Kaart','Map'],photo:['Foto toevoegen','Add photo'],
-settings:['Instellingen','Settings'],language:['Taal','Language'],theme:['Stijl','Style']}
+settings:['Instellingen','Settings'],language:['Taal','Language'],theme:['Stijl','Style'],
+theme_saffraan:['Saffraan','Saffron'],theme_olijf:['Olijf','Olive'],theme_nacht:['Nacht','Night'],theme_oceaan:['Oceaan','Ocean'],theme_kersen:['Kersen','Cherry'],theme_lavendel:['Lavendel','Lavender']}
 export const t=(l:Lang,k:string)=>D[k]?D[k][l==='nl'?0:1]:k

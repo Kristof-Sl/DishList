@@ -11,7 +11,7 @@ type PlaceDraft={name:string;address:string;type:string;cuisine:string;price:str
 type NominatimResult={place_id:number;name?:string;display_name:string;type:string;lat:string;lon:string;address?:{road?:string;house_number?:string;city?:string;town?:string;village?:string};extratags?:{cuisine?:string;website?:string;'contact:website'?:string}}
 const TYPES=['restaurant','cafe','bistro','bar','bakery','takeaway','other']
 const PRICES=['€','€€','€€€','€€€€']
-const THEMES=['saffraan','olijf','nacht']
+const THEMES=['saffraan','olijf','nacht','oceaan','kersen','lavendel']
 let nominatimQueue:Promise<void>=Promise.resolve(),lastNominatimRequest=0
 const fetchNominatim=(url:string|URL):Promise<Response>=>{
   const request=nominatimQueue.then(async()=>{
@@ -225,7 +225,7 @@ export default function App(){
   return <div className="app">
     <header><h1><Logo/> Dishlist</h1><button className="ghost" onClick={()=>setMenu(!menu)}>⚙</button></header>
     {menu&&<div className="panel"><label>{t(l,'language')}</label><select value={lang} onChange={e=>setLang(e.target.value)}><option value="nl">Nederlands</option><option value="en">English</option></select>
-      <label>{t(l,'theme')}</label><select value={theme} onChange={e=>setTheme(e.target.value)}>{THEMES.map(x=><option key={x}>{x}</option>)}</select>
+      <label>{t(l,'theme')}</label><select value={theme} onChange={e=>setTheme(e.target.value)}>{THEMES.map(x=><option key={x} value={x}>{t(l,'theme_'+x)}</option>)}</select>
       <button className="ghost" onClick={()=>supabase.auth.signOut()}>{t(l,'logout')}</button></div>}
     {adding?<AddPlace l={l} onDone={()=>{setAdding(false);load()}}/>
     :cur?<Detail key={cur.id+cur.status} l={l} p={cur} visits={visits.filter(v=>v.place_id===cur.id)} photos={photos} name={name} reload={load} close={()=>setSel(null)} initialVisitId={visitToEdit} onInitialEditHandled={()=>setVisitToEdit(null)}/>

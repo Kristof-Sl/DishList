@@ -1,6 +1,6 @@
 # Dishlist
 
-Shared list of places to eat (to try / tried) for two people. Vite + React + TypeScript, Supabase (database + login), hosted on Vercel. Place search uses OpenStreetMap (Nominatim). UI is Dutch by default, with English and 3 styles under the ⚙ button.
+Shared list of places to eat (to try / tried) for two people. Vite + React + TypeScript, Supabase (database + login), hosted on Vercel. Place search uses OpenStreetMap (Nominatim). UI is Dutch by default, with English and 6 color and font styles under the ⚙ button.
 
 ## Setup
 

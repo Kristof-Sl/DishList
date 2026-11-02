@@ -1,9 +1,12 @@
-:root{--bg:#fbf3e4;--card:#fff9ee;--ink:#3a1f3d;--muted:#7d6a7c;--accent:#e8a923;--line:#e6d6bb;--danger:#b3261e}
+:root{--bg:#fbf3e4;--card:#fff9ee;--ink:#3a1f3d;--muted:#7d6a7c;--accent:#e8a923;--line:#e6d6bb;--danger:#b3261e;--font-body:'DM Sans',system-ui,sans-serif;--font-heading:'Young Serif',Georgia,serif}
 [data-theme=olijf]{--bg:#f1f0e0;--card:#fafaee;--ink:#2f3a1f;--muted:#6f7a5c;--accent:#8a9a3b;--line:#d8dabb}
 [data-theme=nacht]{--bg:#1d1420;--card:#2a1d2e;--ink:#f6ead2;--muted:#b3a1b0;--accent:#e8a923;--line:#443348}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 'DM Sans',system-ui,sans-serif}
+[data-theme=oceaan]{--bg:#eaf4f5;--card:#f7fcfc;--ink:#15394a;--muted:#52717c;--accent:#168c9c;--line:#c5dfe1;--font-body:'Trebuchet MS',Arial,sans-serif;--font-heading:Georgia,serif}
+[data-theme=kersen]{--bg:#faeff1;--card:#fff8f8;--ink:#542738;--muted:#8b6572;--accent:#c34d69;--line:#ebcdd5;--font-body:'Segoe UI',Arial,sans-serif;--font-heading:'Palatino Linotype',Palatino,serif}
+[data-theme=lavendel]{--bg:#f1eef8;--card:#faf8ff;--ink:#342b52;--muted:#716986;--accent:#8772bd;--line:#d9d1eb;--font-body:'Courier New',monospace;--font-heading:'Courier New',monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 var(--font-body)}
 .app,.auth{max-width:640px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
-h1,h2,h3{font-family:'Young Serif',Georgia,serif;font-weight:400;margin:.2em 0}h1{display:flex;align-items:center;gap:10px;font-size:1.7rem}
+h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:.2em 0}h1{display:flex;align-items:center;gap:10px;font-size:1.7rem}
 header{display:flex;justify-content:space-between;align-items:center}
 input,select,textarea,button{font:inherit;color:inherit}
 input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
