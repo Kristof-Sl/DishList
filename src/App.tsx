@@ -43,6 +43,7 @@ function AddPlace({l,onDone}:{l:Lang;onDone:()=>void}){
   return <div className="panel"><h2>{t(l,'add')}</h2>
     <label>{t(l,'osm_search')}</label>
     <div className="row"><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()}/><button className="primary" onClick={search} disabled={busy}>{t(l,'go')}</button></div>
+    <button className="ghost" disabled={!q.trim()} onClick={()=>window.open(`https://www.google.com/search?q=${encodeURIComponent(q.trim())}`,'_blank','noopener,noreferrer')}>{t(l,'search_google')}</button>
     {res&&(res.length?res.map(r=><button key={r.place_id} className="hit" onClick={()=>pick(r)}>{r.display_name}</button>):<p className="muted">{t(l,'no_results')}</p>)}
     <h3>{t(l,'manual')}</h3>
     <input placeholder={t(l,'name')} value={f.name} onChange={e=>set('name',e.target.value)}/>
@@ -101,15 +102,14 @@ function Detail({l,p,visits,photos,name,reload,close,initialVisitId,onInitialEdi
         <div className="visit-field"><label htmlFor="visit-date">{t(l,'date')}</label><input id="visit-date" type="date" value={v.visited_on} onChange={x=>setV({...v,visited_on:x.target.value})}/></div>
         <div className="visit-field"><label htmlFor="visit-by">{t(l,'by')}</label><input id="visit-by" value={v.by_name} onChange={x=>setV({...v,by_name:x.target.value})}/></div>
       </div>
-      <div className="visit-field"><label htmlFor="visit-with">{t(l,'with')}</label><select id="visit-with" value={v.went_with} onChange={x=>setV({...v,went_with:x.target.value})}>
-        <option value="">{t(l,'with')}</option>{['with_two','with_family','with_others'].map(k=><option key={k} value={k}>{t(l,k)}</option>)}
-        {v.went_with&&!['with_two','with_family','with_others'].includes(v.went_with)&&<option value={v.went_with}>{v.went_with}</option>}
+      <div className="visit-field"><label htmlFor="visit-with">{t(l,'company')}</label><select id="visit-with" value={v.went_with} onChange={x=>setV({...v,went_with:x.target.value})}>
+        <option value="" disabled>{t(l,'company')}</option>{['with_two','with_family','with_others'].map(k=><option key={k} value={k}>{t(l,k)}</option>)}
       </select></div>
       <div className="visit-field"><label>{t(l,'rating')}</label><div className="starpick" role="group" aria-label={t(l,'rating')}>{[1,2,3,4,5].map(n=><button type="button" aria-label={`${n} ${t(l,'rating')}`} key={n} className={n<=v.rating?'on':''} onClick={()=>setV({...v,rating:n})}>★</button>)}</div></div>
-      <div className="visit-field"><label htmlFor="visit-return">{t(l,'would_return')}</label><select id="visit-return" value={v.would_return} onChange={x=>setV({...v,would_return:x.target.value})}><option value="">{t(l,'would_return')}</option>{['yes','maybe','no'].map(k=><option key={k} value={k}>{t(l,k)}</option>)}</select></div>
+      <div className="visit-field"><label htmlFor="visit-return">{t(l,'would_return')}</label><select id="visit-return" value={v.would_return} onChange={x=>setV({...v,would_return:x.target.value})}><option value="" disabled>{t(l,'would_return')}</option>{['yes','maybe','no'].map(k=><option key={k} value={k}>{t(l,k)}</option>)}</select></div>
       <div className="row">
         <div className="visit-field"><label htmlFor="visit-bill">{t(l,'total_bill')}</label><input id="visit-bill" type="number" min="0" step="0.01" value={v.total_bill} onChange={x=>setV({...v,total_bill:x.target.value})}/></div>
-        <div className="visit-field"><label htmlFor="visit-meal">{t(l,'meal_type')}</label><select id="visit-meal" value={v.meal_type} onChange={x=>setV({...v,meal_type:x.target.value})}><option value="">{t(l,'meal_type')}</option>{['takeaway','dine_in'].map(k=><option key={k} value={k}>{t(l,k)}</option>)}</select></div>
+        <div className="visit-field"><label htmlFor="visit-meal">{t(l,'meal_type')}</label><select id="visit-meal" value={v.meal_type} onChange={x=>setV({...v,meal_type:x.target.value})}><option value="" disabled>{t(l,'meal_type')}</option>{['takeaway','dine_in'].map(k=><option key={k} value={k}>{t(l,k)}</option>)}</select></div>
       </div>
       <div className="visit-field"><label htmlFor="visit-dishes">{t(l,'dishes')}</label><input id="visit-dishes" value={v.dishes} onChange={x=>setV({...v,dishes:x.target.value})}/></div>
       <div className="visit-field"><label htmlFor="visit-reason">{t(l,'reason')}</label><textarea id="visit-reason" rows={2} value={v.reason} onChange={x=>setV({...v,reason:x.target.value})}/></div>
@@ -192,7 +192,7 @@ export default function App(){
             <div className="visit-detail-fields">
               <div><label>{t(l,'date')}</label><span>{new Intl.DateTimeFormat(l==='nl'?'nl-NL':'en-US',{dateStyle:'long'}).format(new Date(`${visit.visited_on}T12:00:00`))}</span></div>
               <div><label>{t(l,'by')}</label><span>{visit.by_name||'—'}</span></div>
-              <div><label>{t(l,'with')}</label><span>{visit.went_with?t(l,visit.went_with):'—'}</span></div>
+              <div><label>{t(l,'company')}</label><span>{visit.went_with?t(l,visit.went_with):'—'}</span></div>
               <div><label>{t(l,'rating')}</label><span className="stars">{visit.rating?stars(visit.rating):'—'}</span></div>
               <div><label>{t(l,'would_return')}</label><span>{visit.would_return?t(l,visit.would_return):'—'}</span></div>
               <div><label>{t(l,'total_bill')}</label><span>{visit.total_bill!=null?new Intl.NumberFormat(l==='nl'?'nl-NL':'en-US',{style:'currency',currency:'EUR'}).format(visit.total_bill):'—'}</span></div>
