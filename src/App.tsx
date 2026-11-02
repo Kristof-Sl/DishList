@@ -7,9 +7,32 @@ type Place={id:string;name:string;address:string|null;lat:number|null;lng:number
 type Visit={id:string;place_id:string;visited_on:string;by_name:string|null;went_with:string|null;rating:number|null;would_return:string|null;dishes:string|null;notes:string|null;total_bill:number|null;meal_type:string|null;reason:string|null}
 type VisitDraft={id?:string;visited_on:string;by_name:string;went_with:string;rating:number;would_return:string;dishes:string;notes:string;total_bill:string;meal_type:string;reason:string}
 type Photo={id:string;visit_id:string;path:string}
+type PlaceDraft={name:string;address:string;type:string;cuisine:string;price:string;website:string;source:string;lat:number|null;lng:number|null}
+type NominatimResult={place_id:number;name?:string;display_name:string;type:string;lat:string;lon:string;address?:{road?:string;house_number?:string;city?:string;town?:string;village?:string};extratags?:{cuisine?:string;website?:string;'contact:website'?:string}}
 const TYPES=['restaurant','cafe','bistro','bar','bakery','takeaway','other']
 const PRICES=['€','€€','€€€','€€€€']
 const THEMES=['saffraan','olijf','nacht']
+let nominatimQueue:Promise<void>=Promise.resolve(),lastNominatimRequest=0
+const fetchNominatim=(url:string|URL):Promise<Response>=>{
+  const request=nominatimQueue.then(async()=>{
+    const wait=Math.max(0,1000-(Date.now()-lastNominatimRequest))
+    if(wait)await new Promise(resolve=>window.setTimeout(resolve,wait))
+    lastNominatimRequest=Date.now()
+    return fetch(url)
+  })
+  nominatimQueue=request.then(()=>undefined,()=>undefined)
+  return request
+}
+const geocodeAddress=async(name:string,address:string,l:Lang):Promise<{lat:number;lng:number}>=>{
+  const url=new URL('https://nominatim.openstreetmap.org/search')
+  url.search=new URLSearchParams({format:'jsonv2',limit:'1','accept-language':l,q:`${name.trim()}, ${address.trim()}`}).toString()
+  const response=await fetchNominatim(url)
+  if(!response.ok)throw new Error(`OpenStreetMap lookup failed (${response.status})`)
+  const results:NominatimResult[]=await response.json()
+  const result=results[0],lat=Number(result?.lat),lng=Number(result?.lon)
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)||lat < -90||lat > 90||lng < -180||lng > 180)throw new Error(t(l,'address_not_found'))
+  return {lat,lng}
+}
 const dist=(a:number,b:number,c:number,d:number)=>{const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 12742*Math.asin(Math.sqrt(x))}
 const stars=(n:number)=>'★'.repeat(Math.round(n))+'☆'.repeat(5-Math.round(n))
 const photoUrl=(path:string)=>supabase.storage.from('photos').getPublicUrl(path).data.publicUrl
@@ -30,16 +53,31 @@ function Auth({l}:{l:Lang}){
 }
 
 function AddPlace({l,onDone}:{l:Lang;onDone:()=>void}){
-  const [q,setQ]=useState(''),[res,setRes]=useState<any[]|null>(null),[busy,setBusy]=useState(false)
-  const [f,setF]=useState<any>({name:'',address:'',type:'restaurant',cuisine:'',price:'',website:'',source:'',lat:null,lng:null})
-  const set=(k:string,v:any)=>setF({...f,[k]:v})
+  const [q,setQ]=useState(''),[res,setRes]=useState<NominatimResult[]|null>(null),[busy,setBusy]=useState(false)
+  const [f,setF]=useState<PlaceDraft>({name:'',address:'',type:'restaurant',cuisine:'',price:'',website:'',source:'',lat:null,lng:null})
+  const set=(k:keyof PlaceDraft,v:string)=>setF(current=>({...current,[k]:v,...(k==='name'||k==='address'?{lat:null,lng:null}:{})}))
   const search=async()=>{if(!q.trim())return;setBusy(true)
-    try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&limit=8&accept-language='+l+'&q='+encodeURIComponent(q));setRes(await r.json())}catch{setRes([])}
+    try{const r=await fetchNominatim('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&limit=8&accept-language='+l+'&q='+encodeURIComponent(q));if(!r.ok)throw new Error(`OpenStreetMap search failed (${r.status})`);setRes(await r.json())}catch(error){alert(error instanceof Error?error.message:String(error));setRes([])}
     setBusy(false)}
-  const pick=(r:any)=>{const x=r.extratags||{},a=r.address||{}
+  const pick=(r:NominatimResult)=>{const x=r.extratags||{},a=r.address||{}
     const ty=TYPES.includes(r.type)?r.type:(r.type==='fast_food'?'takeaway':'restaurant')
     setF({...f,name:r.name||r.display_name.split(',')[0],address:[a.road,a.house_number,a.city||a.town||a.village].filter(Boolean).join(' ')||r.display_name,type:ty,cuisine:(x.cuisine||'').split(';')[0].replace(/_/g,' '),website:x.website||x['contact:website']||'',lat:+r.lat,lng:+r.lon});setRes(null)}
-  const save=async()=>{if(!f.name.trim())return;const {error}=await supabase.from('places').insert({...f,price:f.price||null});if(!error)onDone();else alert(error.message)}
+  const save=async()=>{if(!f.name.trim()||busy)return;setBusy(true)
+    try{
+      let coordinates={lat:f.lat,lng:f.lng}
+      if(f.address.trim()&&(coordinates.lat==null||coordinates.lng==null)){
+        try{
+          coordinates=await geocodeAddress(f.name,f.address,l)
+        }catch(error){
+          const detail=error instanceof Error?error.message:String(error)
+          if(!confirm(`${t(l,'geocode_error')}\n${detail}\n${t(l,'save_without_location')}`))return
+          coordinates={lat:null,lng:null}
+        }
+      }
+      const {error}=await supabase.from('places').insert({...f,...coordinates,price:f.price||null})
+      if(error)alert(error.message);else onDone()
+    }finally{setBusy(false)}
+  }
   return <div className="panel"><h2>{t(l,'add')}</h2>
     <label>{t(l,'osm_search')}</label>
     <div className="row"><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&search()}/><button className="primary" onClick={search} disabled={busy}>{t(l,'go')}</button></div>
@@ -53,13 +91,31 @@ function AddPlace({l,onDone}:{l:Lang;onDone:()=>void}){
     <input placeholder={t(l,'cuisine')} value={f.cuisine} onChange={e=>set('cuisine',e.target.value)}/>
     <input placeholder={t(l,'website')} value={f.website} onChange={e=>set('website',e.target.value)}/>
     <input placeholder={t(l,'source')} value={f.source} onChange={e=>set('source',e.target.value)}/>
-    <div className="row"><button className="primary" onClick={save}>{t(l,'save')}</button><button className="ghost" onClick={onDone}>{t(l,'cancel')}</button></div></div>
+    <div className="row"><button className="primary" onClick={save} disabled={busy}>{t(l,'save')}</button><button className="ghost" onClick={onDone} disabled={busy}>{t(l,'cancel')}</button></div></div>
 }
 
 function Detail({l,p,visits,photos,name,reload,close,initialVisitId,onInitialEditHandled}:{l:Lang;p:Place;visits:Visit[];photos:Photo[];name:string;reload:()=>void;close:()=>void;initialVisitId?:string|null;onInitialEditHandled?:()=>void}){
   const [e,setE]=useState<Place>(p)
   const [v,setV]=useState<VisitDraft|null>(null)
+  const [savingPlace,setSavingPlace]=useState(false)
   const upd=async(patch:Partial<Place>)=>{const {error}=await supabase.from('places').update(patch).eq('id',p.id);if(error)alert(error.message);reload()}
+  const savePlace=async()=>{
+    setSavingPlace(true)
+    try{
+      let coordinates={lat:e.lat,lng:e.lng}
+      if(e.address!==p.address||e.name!==p.name||coordinates.lat==null||coordinates.lng==null){
+        if(e.address?.trim()){
+          try{coordinates=await geocodeAddress(e.name,e.address,l)}
+          catch(error){
+            const detail=error instanceof Error?error.message:String(error)
+            if(!confirm(`${t(l,'geocode_error')}\n${detail}\n${t(l,'save_without_location')}`))return
+            coordinates={lat:null,lng:null}
+          }
+        }else coordinates={lat:null,lng:null}
+      }
+      await upd({name:e.name,address:e.address,...coordinates,type:e.type,price:e.price||null,cuisine:e.cuisine,website:e.website,source:e.source,notes:e.notes})
+    }finally{setSavingPlace(false)}
+  }
   const mine=photos.filter(ph=>visits.some(v=>v.id===ph.visit_id))
   const upload=async(vid:string,files:FileList|null)=>{if(!files)return;for(const f of Array.from(files)){try{const b=await resize(f),path=`${vid}/${crypto.randomUUID()}.jpg`,u=await supabase.storage.from('photos').upload(path,b,{contentType:'image/jpeg'});if(u.error){alert(u.error.message);continue};await supabase.from('visit_photos').insert({visit_id:vid,path})}catch{alert('Photo error')}};reload()}
   const delPhoto=async(ph:Photo)=>{if(confirm(t(l,'confirm_del'))){await supabase.storage.from('photos').remove([ph.path]);await supabase.from('visit_photos').delete().eq('id',ph.id);reload()}}
@@ -86,7 +142,7 @@ function Detail({l,p,visits,photos,name,reload,close,initialVisitId,onInitialEdi
     {p.lat!=null&&<a href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=17/${p.lat}/${p.lng}`} target="_blank" rel="noreferrer">OpenStreetMap</a>}
     <label>{t(l,'source')}</label><input {...f('source')}/>
     <label>{t(l,'notes')}</label><textarea rows={2} {...f('notes')}/>
-    <div className="row"><button className="primary" onClick={()=>upd({name:e.name,address:e.address,type:e.type,price:e.price||null,cuisine:e.cuisine,website:e.website,source:e.source,notes:e.notes})}>{t(l,'save')}</button>
+    <div className="row"><button className="primary" onClick={savePlace} disabled={savingPlace}>{t(l,'save')}</button>
       <button className="ghost" onClick={()=>upd({status:p.status==='tried'?'to_try':'tried'})}>{t(l,p.status==='tried'?'mark_try':'mark_tried')}</button>
       <button className="danger" onClick={del}>{t(l,'delete')}</button></div>
     <h3>{t(l,'visits')}</h3>

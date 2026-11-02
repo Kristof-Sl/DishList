@@ -32,8 +32,8 @@ Open the site, tap **Account maken** with your email + password. Your partner do
 Open the site in Safari → Share → **Add to Home Screen**. Log in once inside the installed app; you stay logged in afterwards.
 
 ## Notes
-- Nominatim allows light use only (one search per tap, no autocomplete). Don't loop requests.
-- Places without coordinates (manual entries) are hidden by the "near me" filter.
+- Nominatim allows light use only (one search per tap, no autocomplete). Don't loop requests. Searches and address lookups are spaced at least one second apart; manually entered or changed addresses are looked up when saving.
+- Places whose addresses cannot be geocoded are saved without coordinates and are hidden by the "near me" filter.
 - Free Supabase projects pause after about a week of inactivity; resume from the dashboard.
 
 ## Upgrading from version 1

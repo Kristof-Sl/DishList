@@ -8,6 +8,7 @@ type:['Soort','Type'],cuisine:['Keuken','Cuisine'],price:['Prijs','Price'],min_r
 near:['In de buurt (km)','Near me (km)'],off:['Uit','Off'],sort:['Sorteren','Sort'],s_new:['Nieuwste','Newest'],s_name:['Naam','Name'],s_rating:['Beoordeling','Rating'],s_dist:['Afstand','Distance'],
 type_restaurant:['Restaurant','Restaurant'],type_cafe:['Café','Café'],type_bistro:['Bistro','Bistro'],type_bar:['Bar','Bar'],type_bakery:['Bakkerij','Bakery'],type_takeaway:['Afhaal','Takeaway'],type_other:['Overig','Other'],
 osm_search:['Zoek op OpenStreetMap (naam + plaats)','Search OpenStreetMap (name + city)'],go:['Zoeken','Search'],search_google:['Zoek op Google','Search Google'],
+address_not_found:['Geen overeenkomstig adres gevonden','No matching address found'],geocode_error:['Het adres kon niet naar een locatie worden omgezet.','The address could not be geocoded.'],save_without_location:['Toch opslaan zonder kaartlocatie?','Save without a map location anyway?'],
 manual:['Of voeg handmatig toe','Or add manually'],name:['Naam','Name'],address:['Adres / plaats','Address / city'],website:['Website','Website'],
 source:['Bron (bv. tip van Anna)','Source (e.g. tip from Anna)'],notes:['Notities','Notes'],save:['Opslaan','Save'],cancel:['Annuleren','Cancel'],back:['Terug','Back'],
 delete:['Verwijderen','Delete'],confirm_del:['Zeker verwijderen?','Really delete?'],mark_tried:['Markeer als bezocht','Mark as visited'],mark_try:['Terug naar te bezoeken','Back to to visit'],
